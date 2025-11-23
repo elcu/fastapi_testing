@@ -1,13 +1,6 @@
-Activate venv
-    source .venv/bin/activate
-
-Run uvicorn (you need to be cd'd into /app folder)
-    uvicorn main:app --reload
+Run uvicorn (you need to be cd'd into /src folder)
+    * uv run uvicorn src.main:app --reload
+        > This way uv automatically activates venv
         > main = name of the file
         > app = variable name that initiates FastAPI()
         > reload = when updating file and saving, it reflects changes
-    uv run uvicorn src.main:app --reload
-        > This way uv automatically activates venv
-
-How folder should look like
-    https://github.com/Diapolo10/python-uv-template/blob/main/pyproject.toml
