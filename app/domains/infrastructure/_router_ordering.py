@@ -6,7 +6,6 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from fastapi.openapi.models import Example
 from fastapi.security import OAuth2PasswordBearer
-
 from idea_api.core.security import AccessManager, get_access_manager
 from idea_api.crud.ordering_crud import OrderingCRUD, get_ordering_crud
 from idea_api.schemes.ordering import OrderDetails

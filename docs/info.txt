@@ -1,6 +1,38 @@
 Run uvicorn (you need to be cd'd into /src folder)
-    * uv run uvicorn src.main:app --reload
+    * uv run uvicorn app.main:app --reload
         > This way uv automatically activates venv
         > main = name of the file
         > app = variable name that initiates FastAPI()
         > reload = when updating file and saving, it reflects changes
+    * When running as script with __main__
+        > uv run python -m app.main
+
+Validation / Querying:
+    * Models (SQLAlchemy ORM models)
+        > Represent database tables and provide Pythonic ways to query or update the database
+    * Schemas
+        > Used for validation of the
+            - request (async def create_vm(vm: schemas.InfrastructureVMs):)
+            - response (response_model=schemas.InfrastructureVMs)
+    * Query, Path, Body etc.
+        > Validate incoming request parameters from the client
+
+ORM Queyring:
+
+    Select:
+        * most basic construct
+            > execute(select(model))
+        * Select just some columns
+            > select(user_table.c["name", "fullname"])
+    
+    * session.get(User, 1)
+        > Fast retrieval by primary key
+    * where + order_by
+        > select(User).where(User.age > 30).order_by(User.name)
+    * scalars()
+        > If your select() has multiple ORM entities (e.g. select(User).join(Address)), .scalars() will only return the first one, i.e., User.
+        > each row looks like - Row(User(...), Address(...)), scalars pick only the first one as per docs - delivers the first “column” of each row at once
+    * all()
+        > Converts to list 
+        > Access first vm from list, return field from scalars().all()
+            - result_scalars[0].vm_name

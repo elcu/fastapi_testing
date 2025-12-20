@@ -1,52 +1,43 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import uvicorn
+from fastapi import FastAPI
+from fastapi.concurrency import asynccontextmanager
 
-from .core.config import settings
-from .core.logger import logger
-from .routers import users
+from app.api.api import api_router
+from app.core.config import settings
+from app.core.logger import configure_uvicorn_logging, logger, setup_logger, shutdown_logger
+from app.middleware.logging import LoggingMiddleware
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager."""
+
+    logger.info("Initializing resources before the app start...")
+    setup_logger()
+    configure_uvicorn_logging()
+    logger.success("Resources initialized.")
+
+    yield  # Application runs here
+
+    logger.info("Cleaning up resources on app shutdown...")
+    shutdown_logger()
+    logger.success("Resources cleaned up.")
+
 
 app = FastAPI(
     title=settings.app_name,
     description=settings.app_description,
     version=settings.app_version,
+    lifespan=lifespan,
 )
 
-app.include_router(users.router)
+app.add_middleware(LoggingMiddleware)
 
+app.include_router(api_router)
 
-@app.get("/")
-def root():
-    logger.info("infoooo")
-    return {"hello": "world"}
-
-
-# class Item(BaseModel):
-#     text: str = None
-#     is_done: bool = False
-
-
-# items = []
-# @app.post("/items")
-# def create_item(item: Item):
-#     items.append(item)
-#     return items
-
-# @app.get("/items", response_model=list[Item])
-# def list_items(limit: int = 5):
-#     return items[0:limit]
-
-# @app.get("/items/{item_number}", response_model=Item)
-# def get_item(item_number: int) -> Item:
-#     if item_number < len(items):
-#         return items[item_number]
-#     else:
-#         raise HTTPException(status_code=404, detail = "Item was not found.")
-
-
-# curl -X POST -H "Content-Type: application/json" 'http://127.0.0.1:8000/items?item=apple'
-# curl -H "Content-Type: application/json" 'http://127.0.0.1:8000/items/0'
-# curl -H "Content-Type: application/json" 'http://127.0.0.1:8000/items?limit=8'
-
-# with BaseModel
-# no longer the data are in query at the end of url, they are instead json payload sent via -d (data)
-# curl -X POST -H "Content-Type: application/json" -d '{"text": "apple"}' 'http://127.0.0.1:8000/items'
+if __name__ == "__main__":
+    uvicorn.run(
+        app=app,
+        host="0.0.0.0",
+        port=8000,
+    )

@@ -1,3 +1,4 @@
+import logging
 import tomllib
 from pathlib import Path
 
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
         env_ignore_empty=False,
         extra="ignore",
     )
+
+    # Logging, change to INFO in PROD
+    log_level: int = logging.DEBUG
 
     app_name: str = PYPROJECT_CONTENT["name"]
     app_version: str = PYPROJECT_CONTENT["version"]
