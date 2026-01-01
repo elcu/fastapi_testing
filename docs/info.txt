@@ -17,6 +17,24 @@ Validation / Querying:
     * Query, Path, Body etc.
         > Validate incoming request parameters from the client
 
+    * response_model
+        > response_model=schemas.InfrastructureVMsOut / response_model=list[schemas.InfrastructureVMsOut]
+        > Only wrap response_model in list[...] if the top-level return value is a list:
+            [
+                {
+                    "total_count": 2,
+                    "data": [ ... ]
+                },
+                {
+                    "total_count": 5,
+                    "data": [ ... ]
+                }
+            ]
+        > If data are a list, response model can't be list
+
+    * Check if incoming request conforms to schema
+        > assert print(isinstance(request, schemas.InfrastructureVMsIn))
+
 ORM Queyring:
 
     Select:

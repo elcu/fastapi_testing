@@ -37,12 +37,14 @@ async def get_all(
 async def post_vms(
     db_session: AsyncSession,
     request: schemas.InfrastructureVMsIn,  # Pydantic validates the incoming payload before the function run
-) -> list[schemas.InfrastructureVMsOut]:
+) -> schemas.InfrastructureVMsOut:
     """
-    Returns VMs specified in body of request for particular fisc_wk.
+    Fetches VMs for the given criteria.
 
     Returns:
-        list: returns pydantic validated and serialized response XXXXXXXXXList of ORM models. Each element representing one row in table.
+        Instance of InfrastructureVMsOut: Pydantic response model containing:
+            - total_count: Number of matching records
+            - data: List of InfrastructureVMsAll Pydantic models
     """
     try:
         stmt = (
@@ -52,23 +54,15 @@ async def post_vms(
         )
         result = await db_session.execute(stmt)
         result_scalars = result.scalars().all()
-        # assert print(isinstance(request, schemas.InfrastructureVMsIn))
-        # print(result_scalars)
 
         result_pydantic = schemas.InfrastructureVMsOut(
             total_count=len(result_scalars),
             data=[schemas.InfrastructureVMsAll.model_validate(vm) for vm in result_scalars],
         )
-
-        # apps_pydantic = [PydIccrMonthlyCost.model_validate(app).model_dump() for app in apps]
-
-        print(result_pydantic)
-        # total_count=1 data=[InfrastructureVMsAll(vm_name='vm_1', fisc_wk='2026-W01', fisc_yr='FY26', cost=1000.0, role='SQL')]
+        print(result_pydantic.data)
+        print(type(result_pydantic.data[0]))
 
         return result_pydantic
-        # dictt = {}
-        # dictt["data"] = result_scalars
-        # return dictt
 
     except Exception as e:
         msg = "Error fetching data from database"
@@ -77,6 +71,14 @@ async def post_vms(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=msg,
         )
+
+
+#     {
+#   "vm_name": [
+#     "vm_1", "vm_2"
+#   ],
+#   "fisc_wk": "2026-W01"
+# }
 
 
 # msg = str(e).replace("\n", "\n    ")
