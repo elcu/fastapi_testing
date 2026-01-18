@@ -3,10 +3,11 @@
 from app.core.schemas import BaseSchema
 
 # ============================================
-# Naming convention > FolderName + RouterEndpoint (e.g. InfrastructureVMsAll)
+# Naming convention > FolderName + Purpose / Detail (e.g. InfrastructureVMsBase)
 
 
-class InfrastructureVMsAll(BaseSchema):
+class InfrastructureVMsBase(BaseSchema):
+    """Base schema that configures all fields available for the data that are being pulled from db."""
 
     vm_name: str
     fisc_wk: str
@@ -15,13 +16,25 @@ class InfrastructureVMsAll(BaseSchema):
     role: str | None
 
 
+class InfrastructureVMsBasePydantic(BaseSchema):
+    """Extension of base schema that is being used in endpoint which returns Pydantic model."""
+
+    count: int
+    total: int
+    skip: int
+    limit: int
+    data: list[InfrastructureVMsBase]
+
+
 class InfrastructureVMsIn(BaseSchema):
+    """Validation for incoming payload from user."""
 
     vm_name: list[str]
     fisc_wk: str
 
 
 class InfrastructureVMsOut(BaseSchema):
+    """Validation for outcoming payload to user."""
 
-    total_count: int
-    data: list[InfrastructureVMsAll]
+    count: int
+    data: list[InfrastructureVMsBase]

@@ -1,0 +1,14 @@
+In order to properly format on save with black formatter, open (Preferences: Open Workspace Settings (json)) in Visual Studio, and put this into settings.
+This ensures that pyproject.toml arguments like line-length etc are being applied from this file, not from Visual Studio default settings.
+
+    "settings": {
+        "editor.formatOnSave": true,
+        "python.formatting.provider": "none",
+        "black-formatter.args": [
+            "--config",
+            "pyproject.toml"
+        ],
+        "black-formatter.path": [
+            "black"
+        ]
+    }

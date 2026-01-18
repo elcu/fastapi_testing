@@ -9,38 +9,54 @@ from app.domains.infrastructure import models, schemas, services
 router = APIRouter(prefix="/infrastructure", tags=["Infrastructure"])
 
 # ============================================
-# Naming convention of functions > method + endpoint (e.g. post_vm)
+# Naming convention of functions > method + endpoint separated by underscores (e.g. get_vms_all). ORM / Pydantic suffixes should be dropped, as these are used only to detail the differences between the endpoints
 
 # ============================================
 # Two possibilities on how to approach the endpoints
-#     ^ get_all() calls service get_all() which returns an ORM object, and endpoint validates and serializes it with pydantic by using response_model = schema to validate on
-#     ^ get_vms()
+#     ^ vms-all-orm calls service which returns an ORM object, and endpoint validates and serializes it with pydantic by using response_model = schema to validate on
+#     ^ vms-all-pydantic / vms-filter-pydantic endpoints use ORM only for db calls. Service directly validates returned db data based on Pydantic's model
 
 
-# TODO: Implement total count of VMs returned
+# ====== Most simple endpoint - service returns ORM object that is being validated using FastAPI's response_model paramater, which uses Pydantic model defined by us
 @router.get(
-    "/all",
-    response_model=list[schemas.InfrastructureVMsAll],  # Validate returned ORM model by using Pydantic schema and serialize ORM object
-    summary="Returns a list of all VMs in the environment",
+    "/vms-all-orm",
+    response_model=list[
+        schemas.InfrastructureVMsBase
+    ],  # Validate returned ORM model by using Pydantic model that we have defined, serialize ORM object, create documentation etc.
+    summary="Returns a list of all VMs in the environment using the ORM object",
 )
-async def get_all(
+async def get_vms_all_orm(
     db_session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[models.InfrastructureVMs]:
 
-    return await services.get_all(db_session)
+    return await services.get_vms_all_orm(db_session)
 
 
-@router.post(
-    "/vms",
-    response_model=schemas.InfrastructureVMsOut,  # Service already validates the model, however response_model also generates documentation, serializes do json etc. FastAPI also doesn't know what is returned from service, it enforces the contract at the endpoint layer. It protects API boundary
-    summary="Returns a single or a list of VMs",
+# ====== Validation of endpoint is done directly in service using the Pydantic model that we have defined. ORM is being used only for a db call
+@router.get(
+    "/vms-all-pydantic",
+    response_model=schemas.InfrastructureVMsBasePydantic,  # Service already validates the model, however FastAPI's response_model parameter also generates documentation, serializes to json etc. FastAPI also doesn't know what is returned from service, it enforces the contract at the endpoint layer. It protects API boundary
+    summary="Returns a list of all VMs in the environment for specified fiscal week using the Pydantic object, along with metadata",
 )
-async def post_vms(
-    # vm: Annotated[list[str], Query(title="dwqdwqdq", description="USE THIS FOR DESCRIPTION IN DOCS ")],§
-    request: schemas.InfrastructureVMsIn,  # Annotated[list[str], Query(min_length=1)],
-    # app_id: Annotated[list[int], Query(min_length=1)],
-    # fisc_wk: Annotated[str, Query(openapi_examples={"fiscal month": {"value": "2026-M01"}})],
+async def get_vms_all_pydantic(
     db_session: Annotated[AsyncSession, Depends(get_session)],
+    fisc_wk: Annotated[str, Query(example="2030-W01")],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=10000)] = 100,
+) -> schemas.InfrastructureVMsBasePydantic:
+
+    return await services.get_vms_all_pydantic(db_session, fisc_wk, skip, limit)
+
+
+# ====== Validation of endpoint is done directly in service using the Pydantic model that we have defined. ORM is being used only for a db call
+@router.post(
+    "/vms-filter-pydantic",
+    response_model=schemas.InfrastructureVMsOut,  # Service already validates the model, however FastAPI's response_model parameter also generates documentation, serializes to json etc. FastAPI also doesn't know what is returned from service, it enforces the contract at the endpoint layer. It protects API boundary
+    summary="Returns a single or a list of VMs along with metadata",
+)
+async def post_vms_filter_pydantic(
+    db_session: Annotated[AsyncSession, Depends(get_session)],
+    request: schemas.InfrastructureVMsIn,
 ) -> schemas.InfrastructureVMsOut:
 
-    return await services.post_vms(db_session, request)
+    return await services.post_vms_filter_pydantic(db_session, request)

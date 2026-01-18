@@ -11,8 +11,9 @@ from app.core.database import Base
 
 class InfrastructureVMs(Base):
     __tablename__ = "v_infra_vms"
-    __table_args__ = (PrimaryKeyConstraint("vm_name", "fisc_wk"),)  # Must be in tuple format with comma
+    __table_args__ = (PrimaryKeyConstraint("id"),)
 
+    id: Mapped[int]
     vm_name: Mapped[str]
     fisc_wk: Mapped[str]
     fisc_yr: Mapped[str | None]

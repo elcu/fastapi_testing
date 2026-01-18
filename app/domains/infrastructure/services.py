@@ -1,7 +1,7 @@
 """Service module."""
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
@@ -9,14 +9,17 @@ from app.domains.infrastructure import models, schemas
 from app.utils import formatter
 
 # ============================================
-# Naming convention of functions > Same as endpoint's function name (e.g. get_all)
+# Naming convention of functions > Same as endpoint's function name (e.g. get_vms_all)
 
 
-async def get_all(
+async def get_vms_all_orm(
     db_session: AsyncSession,
 ) -> list[models.InfrastructureVMs]:
     """
     Returns all VMs.
+
+    Args:
+        db_session (AsyncSession): Active database session.
 
     Returns:
         list: List of ORM models. Each element representing one row in table.
@@ -34,17 +37,82 @@ async def get_all(
         )
 
 
-async def post_vms(
+async def get_vms_all_pydantic(
     db_session: AsyncSession,
-    request: schemas.InfrastructureVMsIn,  # Pydantic validates the incoming payload before the function run
-) -> schemas.InfrastructureVMsOut:
+    fisc_wk: str,
+    skip: int,
+    limit: int,
+) -> schemas.InfrastructureVMsBasePydantic:
     """
-    Fetches VMs for the given criteria.
+    Fetch VMs matching the provided filter criteria.
+
+    Args:
+        db_session (AsyncSession): Active database session.
+        fisc_wk (str): Fiscal week to pull the data for.
+        skip (int): Number of records to skip.
+        limit (int): Limit number of records to return.
 
     Returns:
-        Instance of InfrastructureVMsOut: Pydantic response model containing:
-            - total_count: Number of matching records
-            - data: List of InfrastructureVMsAll Pydantic models
+        Instance of InfrastructureVMsBasePydantic: Pydantic response model containing:
+            - count: Number of matching records
+            - total: Number of total available records
+            - skip: Number of records user entered to skip
+            - limit: Number of records user entered to limit
+            - data: List of InfrastructureVMsBase Pydantic models
+    """
+    try:
+        stmt_total = select(func.count(models.InfrastructureVMs.id)).where(
+            models.InfrastructureVMs.fisc_wk == fisc_wk
+        )
+        result_total = await db_session.execute(stmt_total)
+        result_total_scalar = result_total.scalar()
+
+        stmt_skip = (
+            select(models.InfrastructureVMs)
+            .where(models.InfrastructureVMs.fisc_wk == fisc_wk)
+            .order_by(
+                models.InfrastructureVMs.id
+            )  # This data set is being offseted and limited, thus it needs to be ordered to not return duplicates in multiple calls by user
+            .offset(skip)
+            .limit(limit)
+        )
+        result_skip = await db_session.execute(stmt_skip)
+        result_skip_scalars = result_skip.scalars().all()
+
+        result_pydantic = schemas.InfrastructureVMsBasePydantic(
+            count=len(result_skip_scalars),
+            total=result_total_scalar,
+            skip=skip,
+            limit=limit,
+            data=[schemas.InfrastructureVMsBase.model_validate(vm) for vm in result_skip_scalars],
+        )
+
+        return result_pydantic
+
+    except Exception as e:
+        msg = "Error fetching data from database"
+        logger.error(formatter.format_error(e, msg))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=msg,
+        )
+
+
+async def post_vms_filter_pydantic(
+    db_session: AsyncSession,
+    request: schemas.InfrastructureVMsIn,  # FastAPI validates the incoming payload before the function run
+) -> schemas.InfrastructureVMsOut:
+    """
+    Fetch VMs matching the provided filter criteria.
+
+    Args:
+        db_session (AsyncSession): Active database session.
+        request (InfrastructureVMsIn): Validated input payload.
+
+    Returns:
+        InfrastructureVMsOut: Instance of Pydantic response model containing:
+            - count: Number of matching records
+            - data: List of InfrastructureVMsBase Pydantic models
     """
     try:
         stmt = (
@@ -56,11 +124,9 @@ async def post_vms(
         result_scalars = result.scalars().all()
 
         result_pydantic = schemas.InfrastructureVMsOut(
-            total_count=len(result_scalars),
-            data=[schemas.InfrastructureVMsAll.model_validate(vm) for vm in result_scalars],
+            count=len(result_scalars),
+            data=[schemas.InfrastructureVMsBase.model_validate(vm) for vm in result_scalars],
         )
-        print(result_pydantic.data)
-        print(type(result_pydantic.data[0]))
 
         return result_pydantic
 
@@ -106,27 +172,27 @@ async def post_vms(
 #         raise ex
 
 
-#   def get_current_fisc_month(self) -> str:
-#         """Returns most current fiscal month from DB
+# def get_current_fisc_month(self) -> str:
+#     """Returns most current fiscal month from DB
 
-#         Returns:
-#             str: current fiscal month in format <2026-M01>
-#         """
-#         with self.db as session:
-#             latest_app: Optional[IccrMonthlyCosts] = (
-#                 session.query(IccrMonthlyCosts)
-#                 .order_by(IccrMonthlyCosts.fisc_yr.desc(), IccrMonthlyCosts.fisc_mth.desc())
-#                 .first()
-#             )
-#         if not latest_app:
-#             empty_db_error = HTTPException(
-#                 status.HTTP_503_SERVICE_UNAVAILABLE,
-#                 "There are no items in database, if the problem persist please contact idea team",
-#             )
-#             logger.error(empty_db_error.detail)
-#             raise empty_db_error
-#         latest_app_pydantic = IccrTable.model_validate(latest_app)
-#         return latest_app_pydantic.fisc_mth
+#     Returns:
+#         str: current fiscal month in format <2026-M01>
+#     """
+#     with self.db as session:
+#         latest_app: Optional[IccrMonthlyCosts] = (
+#             session.query(IccrMonthlyCosts)
+#             .order_by(IccrMonthlyCosts.fisc_yr.desc(), IccrMonthlyCosts.fisc_mth.desc())
+#             .first()
+#         )
+#     if not latest_app:
+#         empty_db_error = HTTPException(
+#             status.HTTP_503_SERVICE_UNAVAILABLE,
+#             "There are no items in database, if the problem persist please contact idea team",
+#         )
+#         logger.error(empty_db_error.detail)
+#         raise empty_db_error
+#     latest_app_pydantic = IccrTable.model_validate(latest_app)
+#     return latest_app_pydantic.fisc_mth
 
 
 # result = await db_session.execute(select(models.InfrastructureVMs))
