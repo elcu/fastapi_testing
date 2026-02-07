@@ -1,9 +1,9 @@
-Run uvicorn (you need to be cd'd into /src folder)
+Run uvicorn
     * uv run uvicorn app.main:app --reload
         > This way uv automatically activates venv
         > main = name of the file
-        > app = variable name that initiates FastAPI()
-        > reload = when updating file and saving, it reflects changes
+        > app = folder in which main is located
+        > reload = when updating file and saving, it reflects changes (this can't run in production)
     * When running as script with __main__
         > uv run python -m app.main
 
